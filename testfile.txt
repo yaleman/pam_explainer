@@ -1,0 +1,5 @@
+auth       required     /lib/security/pam_securetty.so
+    auth       required     /lib/security/pam_env.so
+    auth       sufficient   /lib/security/pam_ldap.so
+    auth       sufficient   /lib/security/pam_ldap2.so
+    auth       required     /lib/security/pam_unix.so try_first_pass

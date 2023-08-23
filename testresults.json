@@ -1,0 +1,39 @@
+[
+    {
+        "facility": "auth",
+        "control": "required",
+        "module": "/lib/security/pam_securetty.so",
+        "result": "Success",
+        "rule_order": 0
+    },
+    {
+        "facility": "auth",
+        "control": "required",
+        "module": "/lib/security/pam_env.so",
+        "result": "Success",
+        "rule_order": 1
+    },
+    {
+        "facility": "auth",
+        "control": "sufficient",
+        "module": "/lib/security/pam_ldap.so",
+        "result": "Success",
+        "rule_order": 2
+    },
+    {
+        "facility": "auth",
+        "control": "sufficient",
+        "module": "/lib/security/pam_ldap2.so",
+        "rule_order": 3,
+        "result": "Success"
+    },
+    {
+        "facility": "auth",
+        "control": "required",
+        "module": "/lib/security/pam_unix.so",
+        "arguments": [
+            "try_first_pass"
+        ],
+        "result": "Success"
+    }
+]
