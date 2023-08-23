@@ -312,21 +312,10 @@ fn try_find_matching_rule_result(rules: &[Rule], rule: &Rule) -> Option<FinalRes
     })
 }
 
-fn main() {
-    if env::var("RUST_LOG").is_err() {
-        env::set_var("RUST_LOG", "INFO");
-    }
-    pretty_env_logger::init();
-
+fn rules_from_vec_string(value: Vec<String>) -> Vec<Rule> {
     let mut rule_order: u32 = 0;
-    let file = match load_file() {
-        Ok(val) => val,
-        Err(_) => return,
-    };
-
     let results_vec = loadresults();
-
-    let rules: Vec<Rule> = file
+    let rules: Vec<Rule> = value
         .into_iter()
         .map(|line| {
             debug!("handling line: '{}'", line);
@@ -336,16 +325,29 @@ fn main() {
         })
         .collect();
     rules.iter().for_each(|r| debug!("{:?}", r));
+    rules
+}
 
-    let the_list = all::<Facility>().collect::<Vec<_>>();
+fn main() {
+    if env::var("RUST_LOG").is_err() {
+        env::set_var("RUST_LOG", "INFO");
+    }
+    pretty_env_logger::init();
 
-    for facility in the_list {
+    let file = match load_file() {
+        Ok(val) => val,
+        Err(_) => return,
+    };
+
+    let rules = rules_from_vec_string(file);
+
+    for facility in all::<Facility>().collect::<Vec<_>>() {
         let f_rules = rules.clone();
         // filter out the ones we want
         let mut rules: Vec<Rule> = f_rules
             .into_iter()
             .filter_map(|r| {
-                if r.facility == facility.clone() {
+                if r.facility == facility {
                     Some(r)
                 } else {
                     None
