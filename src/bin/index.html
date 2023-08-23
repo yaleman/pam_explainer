@@ -1,0 +1,69 @@
+<html>
+
+<head>
+
+</head>
+
+<script src="https://unpkg.com/htmx.org@1.9.4"></script>
+<script src="https://unpkg.com/htmx.org/dist/ext/json-enc.js"></script>
+<script src="https://unpkg.com/htmx.org/dist/ext/client-side-templates.js"></script>
+<script src="https://unpkg.com/mustache@latest"></script>
+<style type="text/css">
+    table {
+        border-collapse: collapse;
+    }
+
+    #data table,
+    #data th,
+    #data td {
+        border: 1px solid black;
+        text-align: left;
+        padding: 0.5em;
+    }
+
+    div.bodyDivs {
+        display: inline-block;
+        vertical-align: top;
+    }
+</style>
+<template id="parsed">
+    {{#parsed}}
+    <tr>
+        <td>{{rule_order}}</td>
+        <td>{{facility}}</td>
+        <td>{{control}}</td>
+        <td>{{module}}</td>
+        <td>{{arguments}}</td>
+        <td>{{final_result}}</td>
+    </tr>
+    {{/parsed}}
+</template>
+
+<body>
+    <div hx-ext="client-side-templates">
+        <div class="bodyDivs">
+            <form id="myForm">
+                <textarea class="form-control" type="search" name="data" rows="20" width="200" hx-post="/parse"
+                    hx-encoding="multipart/form-data" hx-trigger="keyup changed delay:100ms, search"
+                    hx-target="#response" hx-ext='json-enc' mustache-template="parsed"></textarea>
+            </form>
+        </div>
+        <div class="bodyDivs">
+            <table id="data">
+                <thead>
+                    <th>#</th>
+                    <th>Facility</th>
+                    <th>Control</th>
+                    <th>Module</th>
+                    <th>Arguments</th>
+                    <th>Final Result</th>
+                </thead>
+                <tbody id="response"></tbody>
+            </table>
+        </div>
+
+    </div>
+
+</body>
+
+</html>
