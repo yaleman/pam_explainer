@@ -6,6 +6,7 @@ use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize, Serializer};
 use std::convert::TryFrom;
 use std::env;
+use std::io::{Error, ErrorKind};
 
 #[derive(Clone, Debug, Deserialize, Serialize, Eq, PartialEq, Sequence)]
 #[serde(rename_all = "lowercase")]
@@ -19,6 +20,7 @@ pub enum Facility {
     Password,
     /// Modules in this area perform any number of things that happen either during the setup or cleanup of a service for a given user. This may include any number of things; launching a system-wide initialization script, performing special logging, mounting the user’s home directory, or setting resource limits.
     Session,
+    Invalid,
 }
 
 impl ToString for Facility {
@@ -28,20 +30,19 @@ impl ToString for Facility {
             Facility::Account => "account".to_string(),
             Facility::Password => "password".to_string(),
             Facility::Session => "session".to_string(),
+            Facility::Invalid => "invalid!".to_string(),
         }
     }
 }
 
-impl TryFrom<&str> for Facility {
-    type Error = &'static str;
-
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
+impl From<&str> for Facility {
+    fn from(value: &str) -> Self {
         match value {
-            "auth" => Ok(Facility::Auth),
-            "account" => Ok(Facility::Account),
-            "password" => Ok(Facility::Password),
-            "session" => Ok(Facility::Session),
-            _ => Err("invalid facility"),
+            "auth" => Self::Auth,
+            "account" => Self::Account,
+            "password" => Self::Password,
+            "session" => Self::Session,
+            _ => Self::Invalid,
         }
     }
 }
@@ -58,18 +59,17 @@ pub enum Control {
     Sufficient,
     /// An ‘optional’ module, according to the pam(8) manpage, will only cause an operation to fail if it’s the only module in the stack for that facility.
     Optional,
+    Invalid,
 }
 
-impl TryFrom<&str> for Control {
-    type Error = &'static str;
-
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
+impl From<&str> for Control {
+    fn from(value: &str) -> Self {
         match value {
-            "required" => Ok(Control::Required),
-            "requisite" => Ok(Control::Requisite),
-            "sufficient" => Ok(Control::Sufficient),
-            "optional" => Ok(Control::Optional),
-            _ => Err("invalid control"),
+            "required" => Self::Required,
+            "requisite" => Self::Requisite,
+            "sufficient" => Self::Sufficient,
+            "optional" => Self::Optional,
+            _ => Self::Invalid,
         }
     }
 }
@@ -81,16 +81,17 @@ impl ToString for Control {
             Control::Requisite => "requisite".to_string(),
             Control::Sufficient => "sufficient".to_string(),
             Control::Optional => "optional".to_string(),
+            Control::Invalid => "invalid!".to_string(),
         }
     }
 }
 
-fn serialize_rules<S>(input: &Vec<String>, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_str(&input.join(" "))
-    }
+fn serialize_rules<S>(input: &[String], serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    serializer.serialize_str(&input.join(" "))
+}
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[allow(dead_code)]
@@ -98,30 +99,55 @@ pub struct Rule {
     pub facility: Facility,
     pub control: Control,
     pub module: String,
-    #[serde(default = "Vec::new",serialize_with="serialize_rules")]
+    #[serde(default = "Vec::new", serialize_with = "serialize_rules")]
     arguments: Vec<String>,
     pub final_result: Option<FinalResult>,
     pub rule_order: Option<u32>,
+    pub rulehash: Option<String>,
 }
 
 impl Rule {
-    pub fn new(value: &str, rule_order: &u32, results: &[Rule]) -> Result<Self, ()> {
+    pub fn hash(&self) -> String {
+        let mut hash_string = String::new();
+        hash_string.push_str(&self.facility.to_string());
+        hash_string.push_str(&self.control.to_string());
+        hash_string.push_str(&self.module.to_string());
+        hash_string.push_str(&self.arguments.join(" ").to_string());
+        // if let Some(final_result) = self.final_result {
+        //     hash_string.push_str(final_result.to_string());
+        // }
+        sha256::digest(hash_string)
+    }
+
+    pub fn new(value: &str, rule_order: &u32, results: &[Rule]) -> Result<Self, Error> {
+        if value.trim().is_empty() {
+            return Err(Error::new(ErrorKind::Other, "Empty line"));
+        }
+        // check it's long enough
+        if value.split_whitespace().collect::<Vec<&str>>().len() < 3 {
+            return Err(Error::new(ErrorKind::Other, "Not enough parts to the rule"));
+        }
+        // go through and make the rule naow
         let mut parts = value.split_whitespace();
+
         let facility = parts.next().unwrap();
         let control = parts.next().unwrap();
         let module = parts.next().unwrap();
         let arguments = parts.collect::<Vec<&str>>();
+
         let mut rule = Rule {
-            facility: Facility::try_from(facility)
-                .unwrap_or_else(|f| panic!("Failed to parse {} as a facility", f)),
+            facility: Facility::from(facility),
             control: Control::try_from(control)
                 .unwrap_or_else(|f| panic!("Failed to parse {} as a control", f)),
             module: module.to_string(),
             arguments: arguments.iter().map(|s| s.to_string()).collect(),
             final_result: None,
             rule_order: Some(rule_order.to_owned()),
+            rulehash: None,
         };
         rule.final_result = try_find_matching_rule_result(results, &rule);
+        // can't hash it until it's made
+        rule.rulehash = Some(rule.hash());
         Ok(rule)
     }
     pub fn to_shortstring(&self) -> String {
@@ -192,6 +218,7 @@ impl RuleSet {
         // println!("Facility: {:?}", self.facility);
         for (index, rule) in rules_iter {
             match rule.control {
+                Control::Invalid => {}
                 Control::Required => {
                     if let FinalResult::Failure = self.finalresult {
                         info!(
@@ -205,7 +232,9 @@ impl RuleSet {
                         self.finalresult = FinalResult::Failure;
                         warn!(
                             "Rule #{} was required, so {:?} will fail!",
-                            rule.rule_order.unwrap(),
+                            rule.rule_order
+                                .map(|i| i.to_string())
+                                .unwrap_or("?".to_string()),
                             self.facility
                         );
                     }
@@ -216,7 +245,9 @@ impl RuleSet {
                     if !self.get_rule_result(rule) {
                         warn!(
                             "Rule #{} was requisite, so {:?} will fail regardless!",
-                            rule.rule_order.unwrap(),
+                            rule.rule_order
+                                .map(|i| i.to_string())
+                                .unwrap_or("?".to_string()),
                             self.facility
                         );
                         return FinalResult::Failure;
@@ -244,7 +275,9 @@ impl RuleSet {
                         if index == 0 {
                             return FinalResult::Failure;
                         } else {
-                            println!("Optional rule {} failed, but wasn't the first rule, so we'll continue", rule.rule_order.unwrap());
+                            println!("Optional rule {} failed, but wasn't the first rule, so we'll continue", rule.rule_order
+                            .map(|i| i.to_string())
+                            .unwrap_or("?".to_string()),);
                         }
                     }
                 }
@@ -273,33 +306,39 @@ pub fn loadresults() -> Vec<Rule> {
     serde_json::from_str(&input_string).expect("Failed to load results")
 }
 
-pub fn load_file() -> Result<Vec<String>, ()> {
+pub fn load_file() -> Result<Vec<String>, std::io::Error> {
     // load filename specified on the command line as argv[1] as a stirng
     let filename = match env::args().nth(1) {
         Some(filename) => filename,
         None => {
             error!("No filename given, please tell me which file to read!");
-            return Err(());
+            return Err(Error::new(
+                ErrorKind::Other,
+                "No filename given, please tell me which file to read!",
+            ));
         }
     };
     info!("Loading file: {}", filename);
 
     // read the file into a string
-    let input_string = match std::fs::read_to_string(&filename) {
-        Ok(val) => val,
-        Err(err) => {
-            error!("Failed to read {}: {:?}", filename, err);
-            return Err(());
-        }
-    };
+    let input_string = std::fs::read_to_string(&filename).map_err(|err| {
+        error!("Failed to read {}: {:?}", filename, err);
+        err
+    })?;
 
     Ok(input_string
         .lines()
         .filter_map(|line| {
-            if line.trim().is_empty() {
+            let line = line.trim();
+            if line.is_empty() {
+                // ignore blank lines
+                None
+            } else if line.starts_with('#') {
+                // comments
+                info!("Skipping comment: {}", line);
                 None
             } else {
-                Some(line.trim().to_string())
+                Some(line.to_string())
             }
         })
         .collect::<Vec<String>>())
@@ -324,11 +363,21 @@ pub fn rules_from_vec_string(value: Vec<String>) -> Vec<Rule> {
     let results_vec = loadresults();
     let rules: Vec<Rule> = value
         .into_iter()
-        .map(|line| {
+        .filter_map(|line| {
             debug!("handling line: '{}'", line);
-            let rule = Rule::new(&line, &rule_order, &results_vec).unwrap();
-            rule_order += 1;
-            rule
+            if line.trim().is_empty() {
+                return None;
+            }
+            if line.trim().starts_with('#') {
+                return None;
+            }
+
+            if let Ok(rule) = Rule::new(&line, &rule_order, &results_vec) {
+                rule_order += 1;
+                Some(rule)
+            } else {
+                None
+            }
         })
         .collect();
     rules.iter().for_each(|r| debug!("{:?}", r));

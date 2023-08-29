@@ -1,31 +1,15 @@
 <html>
 
 <head>
-
+<link rel="stylesheet" href="/static/css/style.css">
 </head>
 
-<script src="https://unpkg.com/htmx.org@1.9.4"></script>
-<script src="https://unpkg.com/htmx.org/dist/ext/json-enc.js"></script>
-<script src="https://unpkg.com/htmx.org/dist/ext/client-side-templates.js"></script>
-<script src="https://unpkg.com/mustache@latest"></script>
-<style type="text/css">
-    table {
-        border-collapse: collapse;
-    }
+<script type="module">
+    import { h, Component, render } from '/static/js/preact.js';
+    const app = h('h1', null, 'Hello World!');
+    render(app, document.body);
 
-    #data table,
-    #data th,
-    #data td {
-        border: 1px solid black;
-        text-align: left;
-        padding: 0.5em;
-    }
-
-    div.bodyDivs {
-        display: inline-block;
-        vertical-align: top;
-    }
-</style>
+</script>
 <template id="parsed">
     {{#parsed}}
     <tr>
@@ -35,6 +19,19 @@
         <td>{{module}}</td>
         <td>{{arguments}}</td>
         <td>{{final_result}}</td>
+        <td>
+
+            <!-- <input type="hidden" name="rulehash" value="{{rulehash}}"> -->
+            <input type="checkbox" class='resultcheck' name="result_{{rulehash}}_checkbox">
+            <!-- <select class='resultcheck' name="result_{{rulehash}}_value">
+                <option value="success">Success</option>
+                <option value="failure">Failure</option>
+            </select> -->
+            <!-- <input type="hidden" class='resultcheck' name="result_{{rulehash}}_facility" value="{{facility}}" />
+            <input type="hidden" class='resultcheck' name="result_{{rulehash}}_control" value="{{control}}" />
+            <input type="hidden" class='resultcheck' name="result_{{rulehash}}_module" value="{{module}}" />
+            <input type="hidden" class='resultcheck' name="result_{{rulehash}}_arguments" value="{{arguments}}" /> -->
+        </td>
     </tr>
     {{/parsed}}
 </template>
@@ -43,23 +40,49 @@
     <div hx-ext="client-side-templates">
         <div class="bodyDivs">
             <form id="myForm">
-                <textarea class="form-control" type="search" name="data" rows="20" width="200" hx-post="/parse"
+                <textarea class="form-control textareaInput" type="search" name="data" rows="20" hx-post="/parse"
                     hx-encoding="multipart/form-data" hx-trigger="keyup changed delay:100ms, search"
-                    hx-target="#response" hx-ext='json-enc' mustache-template="parsed"></textarea>
+                    hx-target="#response" hx-ext='json-enc' mustache-template="parsed">
+    auth       required     /lib/security/pam_securetty.so
+    auth       required     /lib/security/pam_env.so
+    auth       sufficient   /lib/security/pam_ldap.so
+    auth       sufficient   /lib/security/pam_ldap2.so
+    auth       required     /lib/security/pam_unix.so try_first_pass
+
+# session things
+session       required     /lib/security/pam_securetty.so
+    session       required     /lib/security/pam_env.so
+    # this is an invalid rule
+    testing       sufficient   /lib/security/pam_ldap.so
+    session       sufficient   /lib/security/pam_ldap.so
+    session       sufficient   /lib/security/pam_ldap2.so
+    session       required     /lib/security/pam_unix.so try_first_pass
+                </textarea>
             </form>
         </div>
+        <!-- result side -->
         <div class="bodyDivs">
-            <table id="data">
-                <thead>
-                    <th>#</th>
-                    <th>Facility</th>
-                    <th>Control</th>
-                    <th>Module</th>
-                    <th>Arguments</th>
-                    <th>Final Result</th>
-                </thead>
-                <tbody id="response"></tbody>
-            </table>
+            <form id="results" hx-post="/results" hx-encoding="multipart/form-data" hx-trigger="changed delay:100ms"
+                hx-target="#parsedresult" hx-ext='json-enc' hx-include="[class='resultcheck']">
+                <input type="hidden" name="blep" value="blep" />
+                <table id="data">
+                    <thead>
+                        <th>#</th>
+                        <th>Facility</th>
+                        <th>Control</th>
+                        <th>Module</th>
+                        <th>Arguments</th>
+                        <th>Final Result</th>
+                        <th>&nbsp;</th>
+                        <!-- <th>Rule Hash</th> -->
+                    </thead>
+                    <tbody id="response"></tbody>
+                </table>
+            </form>
+        </div>
+        <!-- test output of final result -->
+        <div class="bodyDivs" id="parsedresult">
+
         </div>
 
     </div>

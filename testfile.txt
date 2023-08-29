@@ -3,3 +3,12 @@ auth       required     /lib/security/pam_securetty.so
     auth       sufficient   /lib/security/pam_ldap.so
     auth       sufficient   /lib/security/pam_ldap2.so
     auth       required     /lib/security/pam_unix.so try_first_pass
+
+# session things
+session       required     /lib/security/pam_securetty.so
+    session       required     /lib/security/pam_env.so
+    # this is an invalid rule
+    testing       sufficient   /lib/security/pam_ldap.so
+    session       sufficient   /lib/security/pam_ldap.so
+    session       sufficient   /lib/security/pam_ldap2.so
+    session       required     /lib/security/pam_unix.so try_first_pass
