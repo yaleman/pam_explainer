@@ -1,3 +1,5 @@
+BUILD_MODE ?= dev
+
 .DEFAULT: help
 .PHONY: help
 help:
@@ -6,7 +8,7 @@ help:
 .PHONY: wasm
 wasm: ## Build the wasm bits
 wasm:
-	cd wasm && wasm-pack build --target web --mode no-install --no-typescript --dev --no-pack && rm pkg/.gitignore
+	cd wasm && wasm-pack build --target web --$(BUILD_MODE) --mode no-install --no-typescript --no-pack && rm pkg/.gitignore
 
 .PHONY: web
 web: ## Build the web things

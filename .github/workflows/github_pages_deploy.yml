@@ -47,8 +47,7 @@ jobs:
         id: pages
         uses: actions/configure-pages@v3
       - name: Build the site content
-        run: |
-          make web
+        run: BUILD_MODE=release make web
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v2
         with:
