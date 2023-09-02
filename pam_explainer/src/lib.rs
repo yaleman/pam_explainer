@@ -1,14 +1,15 @@
 //! based on <https://www.linux.com/news/understanding-pam/> which is probably wrong in places
 
-use dialoguer::Confirm;
+// use dialoguer::Confirm;
 use enum_iterator::Sequence;
 use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize, Serializer};
+use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::env;
 use std::io::{Error, ErrorKind};
 
-#[derive(Clone, Debug, Deserialize, Serialize, Eq, PartialEq, Sequence)]
+#[derive(Clone, Debug, Deserialize, Serialize, Eq, PartialEq, Hash)]
 #[serde(rename_all = "lowercase")]
 #[allow(dead_code)]
 pub enum Facility {
@@ -20,7 +21,68 @@ pub enum Facility {
     Password,
     /// Modules in this area perform any number of things that happen either during the setup or cleanup of a service for a given user. This may include any number of things; launching a system-wide initialization script, performing special logging, mounting the user’s home directory, or setting resource limits.
     Session,
-    Invalid,
+    Invalid(String),
+}
+
+impl From<Facility> for usize {
+    fn from(value: Facility) -> Self {
+        match value {
+            Facility::Account => 0,
+            Facility::Auth => 1,
+            Facility::Password => 2,
+            Facility::Session => 3,
+            Facility::Invalid(_) => 4,
+        }
+    }
+}
+
+impl From<usize> for Facility {
+    fn from(value: usize) -> Self {
+        match value {
+            0 => Self::Account,
+            1 => Self::Auth,
+            2 => Self::Password,
+            3 => Self::Session,
+            _ => Self::Invalid(value.to_string()),
+        }
+    }
+}
+
+impl Sequence for Facility {
+    const CARDINALITY: usize = 5;
+
+    fn next(&self) -> Option<Self> {
+        let val: usize = self.clone().into();
+        if val < Self::CARDINALITY - 1 {
+            Some((val + 1).into())
+        } else {
+            None
+        }
+    }
+
+    fn previous(&self) -> Option<Self> {
+        todo!()
+    }
+
+    fn first() -> Option<Self> {
+        todo!()
+    }
+
+    fn last() -> Option<Self> {
+        todo!()
+    }
+}
+
+impl PartialOrd for Facility {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Facility {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.to_string().cmp(&other.to_string())
+    }
 }
 
 impl ToString for Facility {
@@ -30,7 +92,7 @@ impl ToString for Facility {
             Facility::Account => "account".to_string(),
             Facility::Password => "password".to_string(),
             Facility::Session => "session".to_string(),
-            Facility::Invalid => "invalid!".to_string(),
+            Facility::Invalid(value) => format!("invalid facility: {}", value),
         }
     }
 }
@@ -42,7 +104,7 @@ impl From<&str> for Facility {
             "account" => Self::Account,
             "password" => Self::Password,
             "session" => Self::Session,
-            _ => Self::Invalid,
+            _ => Self::Invalid(value.to_string()),
         }
     }
 }
@@ -50,8 +112,9 @@ impl From<&str> for Facility {
 #[derive(Clone, Debug, Deserialize, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "lowercase")]
 #[allow(dead_code)]
+/// The Control defines how the success or failure of a given module will affect the overall success or failure of the operation. There are four possible values for this field: ‘required’, ‘requisite’, ‘sufficient’, and ‘optional’.
 pub enum Control {
-    /// If a ‘required’ module returns a status that is not ‘success’, the operation will ultimately fail, but only after the modules below it are invoked. This seems senseless at first glance I suppose, but it serves the purpose of always acting the same way from the point of view of the user trying to utilize the service. The net effect is that it becomes impossible for a potential cracker to determine which module caused the failure – and the less information a malicious user has about your system, the better. Important to note is that even if all of the modules in the stack succeed, failure of one ‘required’ module means the operation will ultimately fail. Of course, if a required module succeeds, the operation can still fail if a ‘required’ module later in the stack fails.
+    /// If a ‘required’ module returns a status that is not ‘success’, the operation will ultimately fail, but only after the modules below it are invoked. This serves the purpose of always acting the same way from the point of view of the user trying to utilize the service. The net effect is that it becomes harder for a potential attacker to determine which module caused the failure – the less information a malicious user has about your system, the better. Important to note is that even if all of the modules in the stack succeed, failure of one ‘required’ module means the operation will ultimately fail. Of course, if a required module succeeds, the operation can still fail if a ‘required’ module later in the stack fails.
     Required,
     /// If a ‘requisite’ module fails, the operation not only fails, but the operation is immediately terminated with a failure without invoking any other modules: ‘do not pass go, do not collect $200’, so to speak.
     Requisite,
@@ -59,7 +122,7 @@ pub enum Control {
     Sufficient,
     /// An ‘optional’ module, according to the pam(8) manpage, will only cause an operation to fail if it’s the only module in the stack for that facility.
     Optional,
-    Invalid,
+    Invalid(String),
 }
 
 impl From<&str> for Control {
@@ -69,7 +132,7 @@ impl From<&str> for Control {
             "requisite" => Self::Requisite,
             "sufficient" => Self::Sufficient,
             "optional" => Self::Optional,
-            _ => Self::Invalid,
+            _ => Self::Invalid(value.to_string()),
         }
     }
 }
@@ -81,7 +144,7 @@ impl ToString for Control {
             Control::Requisite => "requisite".to_string(),
             Control::Sufficient => "sufficient".to_string(),
             Control::Optional => "optional".to_string(),
-            Control::Invalid => "invalid!".to_string(),
+            Control::Invalid(value) => format!("invalid: {}", value),
         }
     }
 }
@@ -93,29 +156,40 @@ where
     serializer.serialize_str(&input.join(" "))
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, Eq)]
 #[allow(dead_code)]
 pub struct Rule {
     pub facility: Facility,
     pub control: Control,
     pub module: String,
     #[serde(default = "Vec::new", serialize_with = "serialize_rules")]
-    arguments: Vec<String>,
+    pub arguments: Vec<String>,
     pub final_result: Option<FinalResult>,
     pub rule_order: Option<u32>,
     pub rulehash: Option<String>,
 }
 
+impl PartialEq for Rule {
+    fn eq(&self, other: &Self) -> bool {
+        self.facility == other.facility
+            && self.control == other.control
+            && self.module == other.module
+            && self.arguments == other.arguments
+            && self.final_result == other.final_result
+            && self.rule_order == other.rule_order
+            && self.rulehash == other.rulehash
+    }
+}
+
 impl Rule {
+    // hash of the configuration, not including the final result
     pub fn hash(&self) -> String {
         let mut hash_string = String::new();
         hash_string.push_str(&self.facility.to_string());
         hash_string.push_str(&self.control.to_string());
         hash_string.push_str(&self.module.to_string());
         hash_string.push_str(&self.arguments.join(" ").to_string());
-        // if let Some(final_result) = self.final_result {
-        //     hash_string.push_str(final_result.to_string());
-        // }
+
         sha256::digest(hash_string)
     }
 
@@ -158,9 +232,53 @@ impl Rule {
             self.arguments.join(" ")
         )
     }
+
+    // return the result of the combination of the
+    pub fn result_string(&self) -> String {
+        match &self.final_result {
+            Some(ref final_result) => match &self.control {
+                Control::Required => match final_result {
+                    FinalResult::Success => "Required rule succeeded",
+                    FinalResult::Failure => {
+                        "Required rule failed - other rules will run but the event will fail."
+                    }
+                }
+                .to_string(),
+                Control::Requisite => match final_result {
+                    FinalResult::Success => "Requisite rule continues.",
+                    FinalResult::Failure => "Instant failure of this facility!",
+                }
+                .to_string(),
+                Control::Sufficient => match final_result {
+                    FinalResult::Success => {
+                        "This'll allow further 'sufficient' rules to be skipped."
+                    }
+                    FinalResult::Failure => "'sufficient' rule failed, but other rules will run.",
+                }
+                .to_string(),
+                Control::Optional => if self.rule_order != Some(0) || self.rule_order.is_none() {
+                    "Result is irrelevant as it's not the only rule"
+                } else {
+                    match final_result {
+                        FinalResult::Success => {
+                            "Optional rule succeeded, as it's the only rule the facility succeeds."
+                        }
+                        FinalResult::Failure => {
+                            "Optional rule failed, and thus the facility fails."
+                        }
+                    }
+                }
+                .to_string(),
+                Control::Invalid(invalid_value) => {
+                    format!("Invalid control configuration: {}", invalid_value)
+                }
+            },
+            None => "Final result not set, can't determine state!".to_string(),
+        }
+    }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, Eq, PartialEq)]
 pub enum FinalResult {
     Success,
     Failure,
@@ -175,9 +293,18 @@ impl From<FinalResult> for bool {
     }
 }
 
+impl From<bool> for FinalResult {
+    fn from(value: bool) -> Self {
+        match value {
+            true => FinalResult::Success,
+            false => FinalResult::Failure,
+        }
+    }
+}
+
+#[derive(PartialEq, Eq, Clone, Debug)]
 pub struct RuleSet {
-    #[allow(dead_code)]
-    facility: Facility,
+    pub facility: Facility,
     pub rules: Vec<Rule>,
     pub finalresult: FinalResult,
     pub had_sufficient: bool,
@@ -194,12 +321,14 @@ impl RuleSet {
                     rule.facility.to_string(),
                     rule.to_shortstring()
                 );
-
+                #[cfg(feature = "cli")]
                 match Confirm::new().interact() {
                     Ok(true) => true,
                     Ok(false) => false,
                     Err(_) => false,
                 }
+                #[cfg(not(feature = "cli"))]
+                false
             }
         }
     }
@@ -217,8 +346,10 @@ impl RuleSet {
         let rules_iter = self.rules.iter().enumerate();
         // println!("Facility: {:?}", self.facility);
         for (index, rule) in rules_iter {
-            match rule.control {
-                Control::Invalid => {}
+            match rule.control.clone() {
+                Control::Invalid(value) => {
+                    warn!("Invalid control: {}", value);
+                }
                 Control::Required => {
                     if let FinalResult::Failure = self.finalresult {
                         info!(
@@ -382,4 +513,30 @@ pub fn rules_from_vec_string(value: Vec<String>) -> Vec<Rule> {
         .collect();
     rules.iter().for_each(|r| debug!("{:?}", r));
     rules
+}
+
+pub type RuleSets = HashMap<Facility, RuleSet>;
+
+pub fn rulesets_from_string(value: String, default_result: FinalResult) -> RuleSets {
+    let rules = rules_from_vec_string(
+        value
+            .lines()
+            .into_iter()
+            .map(|l| l.to_string())
+            .collect::<Vec<String>>(),
+    );
+
+    let mut rulesets: RuleSets = HashMap::new();
+
+    rules.into_iter().for_each(|rule| {
+        if rulesets.get(&rule.facility).is_none() {
+            rulesets.insert(rule.facility.clone(), RuleSet::new(&rule.facility, vec![]));
+        }
+        let mut rule = rule;
+        rule.final_result = Some(default_result.clone());
+
+        rulesets.get_mut(&rule.facility).unwrap().rules.push(rule);
+    });
+
+    rulesets
 }

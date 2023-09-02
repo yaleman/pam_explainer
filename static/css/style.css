@@ -1,0 +1,46 @@
+body, td {
+    font-family: sans-serif;
+    font-size: 0.8em;
+}
+
+
+table {
+    border-collapse: collapse;
+    margin-bottom: 1.0em;
+}
+
+.bodyDivs {
+    display: inline-block;
+    min-width: 48%;
+    vertical-align: top;
+    padding: 0.5em;
+}
+
+.configBackground {
+    background-color: lightgrey;
+    text-align: center;
+}
+.resultsBackground {
+    /* background-color: #DFB; */
+    border: 1px solid #DFB;
+}
+
+.facilityTitle {
+    text-transform: capitalize;
+}
+
+.textareaInput {
+    width: 90%;
+}
+
+#data table  {
+    width: 90%;
+}
+
+#data table,
+#data th,
+#data td {
+    border: 1px solid black;
+    text-align: left;
+    padding: 0.5em;
+}

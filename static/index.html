@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>PAMSplainer</title>
+    <link rel="stylesheet" href="css/style.css" />
+</head>
+
+<body>
+    &nbsp;<br />
+    &nbsp;<br />
+    <center>Hi there! If you see this message, the WASM driving this site's not loading, you probably want to
+        check your browser
+        settings, or <a href="https://github.com/yaleman/pam_explainer/issues/new">log an issue here</a>.</center>
+    <script type="module">
+        // loads the module which loads the WASM. It's loaders all the way down.
+        import init, { pamsplain } from './wasm.js';
+        async function main() {
+            await init('wasm_bg.wasm');
+            pamsplain();
+        }
+        main()
+    </script>
+</body>
+
+</html>

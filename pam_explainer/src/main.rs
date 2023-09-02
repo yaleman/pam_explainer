@@ -8,6 +8,7 @@ fn main() {
     if env::var("RUST_LOG").is_err() {
         env::set_var("RUST_LOG", "INFO");
     }
+    #[cfg(feature = "cli")]
     pretty_env_logger::init();
 
     let file = match load_file() {

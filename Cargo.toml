@@ -1,12 +1,27 @@
-[package]
-name = "pam_explainer"
-version = "0.1.0"
+[workspace]
+resolver = "2"
+members = ["pam_explainer", "wasm"]
+
+[workspace.package]
+version = "0.0.1"
+description = "PAM Explainer - Helper to work out the PAM stack for a given service"
+authors = ["James Hodgkinson <james@terminaloutcomes.com>"]
+rust-version = "1.71"
 edition = "2021"
+license = "MPL-2.0"
+homepage = "https://github.com/yaleman/pam_explainer/"
+repository = "https://github.com/yaleman/pam_explainer/"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[dependencies]
-axum = { version = "0.6.20", features = ["form", "macros", "tracing", "headers"] }
+[workspace.dependencies]
+sha256 = { version = "1.4.0", default-features = false }
+axum = { version = "0.6.20", features = [
+    "form",
+    "macros",
+    "tracing",
+    "headers",
+] }
 axum-macros = "0.3.8"
 dialoguer = "0.10.4"
 enum-iterator = "1.4.1"
@@ -14,7 +29,6 @@ log = "0.4.20"
 pretty_env_logger = "0.5.0"
 serde = { version = "1.0.188", features = ["derive"] }
 serde_json = "1.0.105"
-sha256 = "1.4.0"
 tokio = { version = "1.32.0", features = ["full", "tracing"] }
 tower-http = { version = "0.4.4", features = ["tokio", "fs"] }
 tracing = "0.1.37"

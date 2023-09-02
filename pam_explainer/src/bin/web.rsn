@@ -24,8 +24,7 @@ async fn main() {
         // `POST /users` goes to `create_user`
         .route("/parse", post(parse_pam))
         .route("/results", post(handle_results))
-        .nest_service("/static", ServeDir::new("./src/static/").precompressed_br())
-        ;
+        .nest_service("/static", ServeDir::new("./src/static/").precompressed_br());
 
     // run our app with hyper
     // `axum::Server` is a re-export of `hyper::Server`
