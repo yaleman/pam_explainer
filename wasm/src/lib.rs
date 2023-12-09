@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use pam_explainer::{FinalResult, RuleSets};
+use pam_explainer::{Facility, FinalResult, RuleSets};
 #[allow(unused_imports)]
 use wasm_bindgen::prelude::*;
 
@@ -44,12 +44,7 @@ impl Component for PamSplainer {
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
-        let mut sorted_keys = self
-            .rulesets
-            .keys()
-            .into_iter()
-            .map(|k| k.clone())
-            .collect::<Vec<_>>();
+        let mut sorted_keys: Vec<Facility> = self.rulesets.keys().cloned().collect();
         sorted_keys.sort();
 
         html! {
@@ -122,11 +117,7 @@ impl Component for PamSplainer {
                 rulehash,
                 final_result,
             } => {
-                info!(
-                    "PamSplainer Update ",
-                    rulehash.clone(),
-                    final_result.clone()
-                );
+                info!("PamSplainer Update ", rulehash.clone(), final_result);
                 let mut rulesets = self.rulesets.clone();
                 for (_facility, ruleset) in rulesets.iter_mut() {
                     for rule in ruleset.rules.iter_mut() {

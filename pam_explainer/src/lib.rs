@@ -518,13 +518,8 @@ pub fn rules_from_vec_string(value: Vec<String>) -> Vec<Rule> {
 pub type RuleSets = HashMap<Facility, RuleSet>;
 
 pub fn rulesets_from_string(value: String, default_result: FinalResult) -> RuleSets {
-    let rules = rules_from_vec_string(
-        value
-            .lines()
-            .into_iter()
-            .map(|l| l.to_string())
-            .collect::<Vec<String>>(),
-    );
+    let rule_vcec_string: Vec<String> = value.lines().map(|l| l.to_string()).collect();
+    let rules = rules_from_vec_string(rule_vcec_string);
 
     let mut rulesets: RuleSets = HashMap::new();
 

@@ -71,13 +71,14 @@ impl Component for RuleSet {
                         } else {
                             html!{<></>}
                         }}
-                        <td>{rule.control.clone()}</td>
+
+                        <td>{rule.control.to_string()}</td>
                         <td>{rule.module.clone()}</td>
                         <td>{rule.arguments.join(" ")}</td>
                         <td><input type="checkbox"
                             id={rule.rulehash.clone().unwrap_or("foo".to_string())}
                             checked={checked}
-                            onchange={ctx.clone().link().callback(move |event: Event| {
+                            onchange={ctx.link().callback(move |event: Event| {
                             if let Some(event) = event.target(){
                                 let input = event.dyn_into::<HtmlInputElement>().unwrap();
                                 let checked = input.checked();
