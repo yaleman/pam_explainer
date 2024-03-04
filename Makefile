@@ -8,7 +8,7 @@ help:
 .PHONY: wasm
 wasm: ## Build the wasm bits
 wasm:
-	cd wasm && wasm-pack build --target web --$(BUILD_MODE) --mode no-install --no-typescript --no-pack && rm pkg/.gitignore
+	cd wasm && wasm-pack build --target web --$(BUILD_MODE) --no-typescript --no-pack && rm pkg/.gitignore
 
 .PHONY: web
 web: ## Build the web things
