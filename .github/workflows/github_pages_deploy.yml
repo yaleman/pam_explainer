@@ -29,7 +29,7 @@ defaults:
 
 jobs:
   # Build job
-  build:
+  github_pages_build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -54,13 +54,13 @@ jobs:
           path: ./target/web
 
   # Deployment job
-  deploy:
+  github_pages_deploy:
     if: ${{ github.ref == 'refs/heads/main' }}
     environment:
       name: "github-pages"
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
-    needs: build
+    needs: github_pages_build
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
