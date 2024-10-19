@@ -8,6 +8,7 @@ help:
 .PHONY: wasm
 wasm: ## Build the wasm bits
 wasm:
+	cargo clean
 	cd wasm && wasm-pack build --target web --$(BUILD_MODE) --no-typescript --no-pack && rm pkg/.gitignore
 
 .PHONY: web
