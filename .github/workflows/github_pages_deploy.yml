@@ -49,7 +49,7 @@ jobs:
       - name: Build the site content
         run: BUILD_MODE=release make web
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
         with:
           path: ./target/web
 
