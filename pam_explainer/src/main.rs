@@ -1,13 +1,8 @@
-use std::env;
-
 use enum_iterator::all;
 use log::info;
 use pam_explainer::*;
 
 fn main() {
-    if env::var("RUST_LOG").is_err() {
-        env::set_var("RUST_LOG", "INFO");
-    }
     #[cfg(feature = "cli")]
     pretty_env_logger::init();
 
@@ -32,7 +27,7 @@ fn main() {
             })
             .collect();
         // sort them just to be sure
-        rules.sort_by_key(|item| (item.rule_order));
+        rules.sort_by_key(|item| item.rule_order);
         let mut ruleset = RuleSet::new(&facility, rules);
         let ruleset_result = ruleset.run_rules();
         info!(
