@@ -5,9 +5,9 @@ use enum_iterator::Sequence;
 use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize, Serializer};
 use std::collections::HashMap;
-use std::convert::TryFrom;
 use std::env;
-use std::io::{Error, ErrorKind};
+use std::fmt::Display;
+use std::io::Error;
 
 #[derive(Clone, Debug, Deserialize, Serialize, Eq, PartialEq, Hash)]
 #[serde(rename_all = "lowercase")]
@@ -85,14 +85,14 @@ impl Ord for Facility {
     }
 }
 
-impl ToString for Facility {
-    fn to_string(&self) -> String {
+impl Display for Facility {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Facility::Auth => "auth".to_string(),
-            Facility::Account => "account".to_string(),
-            Facility::Password => "password".to_string(),
-            Facility::Session => "session".to_string(),
-            Facility::Invalid(value) => format!("invalid facility: {}", value),
+            Facility::Auth => write!(f, "auth"),
+            Facility::Account => write!(f, "account"),
+            Facility::Password => write!(f, "password"),
+            Facility::Session => write!(f, "session"),
+            Facility::Invalid(value) => write!(f, "invalid facility: {}", value),
         }
     }
 }
@@ -137,14 +137,14 @@ impl From<&str> for Control {
     }
 }
 
-impl ToString for Control {
-    fn to_string(&self) -> String {
+impl Display for Control {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Control::Required => "required".to_string(),
-            Control::Requisite => "requisite".to_string(),
-            Control::Sufficient => "sufficient".to_string(),
-            Control::Optional => "optional".to_string(),
-            Control::Invalid(value) => format!("invalid: {}", value),
+            Control::Required => write!(f, "required"),
+            Control::Requisite => write!(f, "requisite"),
+            Control::Sufficient => write!(f, "sufficient"),
+            Control::Optional => write!(f, "optional"),
+            Control::Invalid(value) => write!(f, "invalid: {}", value),
         }
     }
 }
@@ -195,24 +195,29 @@ impl Rule {
 
     pub fn new(value: &str, rule_order: &u32, results: &[Rule]) -> Result<Self, Error> {
         if value.trim().is_empty() {
-            return Err(Error::new(ErrorKind::Other, "Empty line"));
+            return Err(Error::other("Empty line"));
         }
         // check it's long enough
         if value.split_whitespace().collect::<Vec<&str>>().len() < 3 {
-            return Err(Error::new(ErrorKind::Other, "Not enough parts to the rule"));
+            return Err(Error::other("Not enough parts to the rule"));
         }
         // go through and make the rule naow
         let mut parts = value.split_whitespace();
 
-        let facility = parts.next().unwrap();
-        let control = parts.next().unwrap();
-        let module = parts.next().unwrap();
+        let facility = parts
+            .next()
+            .ok_or_else(|| Error::other("Failed to get facility"))?;
+        let control = parts
+            .next()
+            .ok_or_else(|| Error::other("Failed to get control"))?;
+        let module = parts
+            .next()
+            .ok_or_else(|| Error::other("Failed to get module"))?;
         let arguments = parts.collect::<Vec<&str>>();
 
         let mut rule = Rule {
             facility: Facility::from(facility),
-            control: Control::try_from(control)
-                .unwrap_or_else(|f| panic!("Failed to parse {} as a control", f)),
+            control: Control::from(control),
             module: module.to_string(),
             arguments: arguments.iter().map(|s| s.to_string()).collect(),
             final_result: None,
@@ -227,7 +232,7 @@ impl Rule {
     pub fn to_shortstring(&self) -> String {
         format!(
             "{} {} {}",
-            self.control.to_string(),
+            self.control,
             self.module,
             self.arguments.join(" ")
         )
@@ -318,7 +323,7 @@ impl RuleSet {
             None => {
                 info!(
                     "Did this succeed: {} {}",
-                    rule.facility.to_string(),
+                    rule.facility,
                     rule.to_shortstring()
                 );
                 #[cfg(feature = "cli")]
@@ -388,7 +393,7 @@ impl RuleSet {
                     if self.had_sufficient {
                         info!(
                             "Don't have to process {} {} {} because we already had a 'sufficient' rule",
-                            rule.control.to_string(),
+                            rule.control,
                             rule.module,
                             rule.arguments.join(" "),
                         );
@@ -443,8 +448,7 @@ pub fn load_file() -> Result<Vec<String>, std::io::Error> {
         Some(filename) => filename,
         None => {
             error!("No filename given, please tell me which file to read!");
-            return Err(Error::new(
-                ErrorKind::Other,
+            return Err(Error::other(
                 "No filename given, please tell me which file to read!",
             ));
         }
@@ -524,13 +528,16 @@ pub fn rulesets_from_string(value: String, default_result: FinalResult) -> RuleS
     let mut rulesets: RuleSets = HashMap::new();
 
     rules.into_iter().for_each(|rule| {
-        if rulesets.get(&rule.facility).is_none() {
+        if !rulesets.contains_key(&rule.facility) {
             rulesets.insert(rule.facility.clone(), RuleSet::new(&rule.facility, vec![]));
         }
         let mut rule = rule;
         rule.final_result = Some(default_result.clone());
-
-        rulesets.get_mut(&rule.facility).unwrap().rules.push(rule);
+        if let Some(rs) = rulesets.get_mut(&rule.facility) {
+            rs.finalresult = default_result.clone();
+        } else {
+            error!("Failed to get ruleset for facility {:?}", rule.facility);
+        }
     });
 
     rulesets

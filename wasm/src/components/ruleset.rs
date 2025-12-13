@@ -65,7 +65,7 @@ impl Component for RuleSet {
                 };
                 html! {
                     <tr>
-                        <td>{rule.rule_order}</td>
+                        <td>{rule.rule_order.unwrap_or(0).to_string()}</td>
                         { if let Facility::Invalid(value) = rule.facility {
                             html!{<th>{value}</th>}
                         } else {
@@ -80,10 +80,16 @@ impl Component for RuleSet {
                             checked={checked}
                             onchange={ctx.link().callback(move |event: Event| {
                             if let Some(event) = event.target(){
-                                let input = event.dyn_into::<HtmlInputElement>().unwrap();
-                                let checked = input.checked();
-                                debug!("Sending rule update", rule.rulehash.clone().unwrap(), checked);
-                                RuleSetMessage::RuleUpdate{rulehash: rule.rulehash.clone().unwrap(), final_result: checked}
+                                if let Some(rulehash) = rule.rulehash.as_ref() {
+
+                                    let input = event.dyn_into::<HtmlInputElement>().expect("Failed to cast event target to HtmlInputElement");
+                                    let checked = input.checked();
+                                    debug!("Sending rule update", rule.rulehash.clone(), checked);
+                                    RuleSetMessage::RuleUpdate{rulehash: rulehash.clone(), final_result: checked}
+                                } else {
+                                    debug !("No rulehash found for rule, cannot send update");
+                                    RuleSetMessage::Nothing
+                                }
                             } else {
                                 RuleSetMessage::Nothing
                             }

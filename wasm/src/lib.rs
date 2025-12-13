@@ -74,16 +74,17 @@ impl Component for PamSplainer {
             </div>
             <div class="bodyDivs resultsBackground">
                 {
-                    sorted_keys.into_iter().map(|facility| {
-                    html! {
+                    sorted_keys.into_iter().filter_map(|facility| {
+                        self.rulesets.get(&facility).map(|facility_ruleset | {
+                   html! {
                         <components::ruleset::RuleSet
-                            ruleset={self.rulesets.get(&facility).unwrap().clone()}
+                            ruleset={facility_ruleset.clone()}
                             rulecallback={ctx.link().callback(|(rulehash, final_result)| {
                                 PamSplainerMessage::RuleUpdate{rulehash, final_result}
                             })
                             } />
 
-                    }
+                    }})
                 }).collect::<Html>()}
             </div>
             <footer>{"Made by James Hodgkinson | "}<a href="https://github.com/yaleman/pam_explainer">{"Github"}</a>
