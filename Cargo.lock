@@ -95,9 +95,9 @@ dependencies = [
 
 [[package]]
 name = "axum-macros"
-version = "0.5.0"
+version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "604fde5e028fea851ce1d8570bbdc034bec850d157f7569d10f347d06808c05c"
+checksum = "7aa268c23bfbbd2c4363b9cd302a4f504fb2a9dfe7e3451d66f35dd392e20aca"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -922,7 +922,7 @@ name = "pam_explainer"
 version = "0.1.0"
 dependencies = [
  "axum",
- "axum-macros 0.5.0",
+ "axum-macros 0.5.1",
  "dialoguer",
  "enum-iterator",
  "log",
