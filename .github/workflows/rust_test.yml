@@ -14,7 +14,7 @@ jobs:
   cargo_test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Setup sccache
         uses: mozilla-actions/sccache-action@v0.0.10
       - name: cargo test
@@ -22,7 +22,7 @@ jobs:
   cargo_build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Setup sccache
         uses: mozilla-actions/sccache-action@v0.0.10
       - name: cargo build
