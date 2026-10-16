@@ -432,9 +432,9 @@ dependencies = [
 
 [[package]]
 name = "gloo-console"
-version = "0.4.0"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9f1d5cec0b97edb53f21221f799c659cef3764ad5a00eca52950eb9b902028ba"
+checksum = "c8b39f7a21b04d982b709667625a20c7669890270ad77a40b74c0ad02bd61822"
 dependencies = [
  "gloo-utils 0.3.0",
  "js-sys",
@@ -1688,7 +1688,7 @@ checksum = "9c8d87e72b64a3b4db28d11ce29237c246188f4f51057d65a7eab63b7987e423"
 name = "wasm"
 version = "0.1.0"
 dependencies = [
- "gloo-console 0.4.0",
+ "gloo-console 0.4.1",
  "pam_explainer",
  "wasm-bindgen",
  "web-sys",
